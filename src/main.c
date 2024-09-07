@@ -1,57 +1,45 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "bmp_reader.h"
-
-void printBMPHeaders(BMPFile* bmp) {
-    // Вывод информации о BMP File Header
-    printf("BMP File Header:\n");
-    printf("  Тип файла: %c%c (0x%X)\n", (bmp->fileHeader.bfType & 0xFF), (bmp->fileHeader.bfType >> 8), bmp->fileHeader.bfType);
-    printf("  Размер файла: %u байт\n", bmp->fileHeader.bfileSize);
-    printf("  Зарезервировано: %u\n", bmp->fileHeader.bfReserved);
-    printf("  Смещение до данных изображения: %u байт\n", bmp->fileHeader.bOffBits);
-
-    // Вывод информации о DIB Header (Bitmap Info Header)
-    printf("\nDIB Header (Bitmap Info Header):\n");
-    printf("  Размер DIB Header: %u байт\n", bmp->dibHeader.biSize);
-    printf("  Ширина изображения: %d пикселей\n", bmp->dibHeader.biWidth);
-    printf("  Высота изображения: %d пикселей\n", bmp->dibHeader.biHeight);
-    printf("  Число цветовых плоскостей: %d\n", bmp->dibHeader.biPlanes);
-    printf("  Глубина цвета: %d бит\n", bmp->dibHeader.biBitCount);
-    printf("  Тип сжатия: %u\n", bmp->dibHeader.biCompression);
-    printf("  Размер изображения: %u байт\n", bmp->dibHeader.biSizeImage);
-}
-
-void printBMPPixels(BMPFile* bmp) {
-    printf("\nПиксели изображения:\n");
-    int width = bmp->dibHeader.biWidth;
-    int height = bmp->dibHeader.biHeight;
-    
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            Pixel pixel = bmp->data[y * width + x];
-            printf("Пиксель (%d, %d): R=%d G=%d B=%d\n", x, y, pixel.r, pixel.g, pixel.b);
-        }
-    }
-}
+#include "bmp_transform.h"
+#include "bmp_writer.h"
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        printf("Ошибка: укажите путь к BMP файлу в качестве аргумента.\n");
+    if (argc < 4) {
+        printf("Ошибка: укажите путь к BMP файлу, тип преобразования и путь для сохранения результата.\n");
         return 1;
     }
 
     BMPFile* bmp = loadBMPfile(argv[1]);
 
-    if (bmp != NULL) {
-        printf("Файл BMP успешно загружен.\n\n");
-        printBMPHeaders(bmp);
-        
-        printBMPPixels(bmp);  // Выводим информацию о пикселях
-        
-        freeBMPfile(bmp);
-    } else {
+    if (!bmp) {
         printf("Не удалось загрузить BMP файл.\n");
+        return 1;
     }
+
+    // Обрабатываем преобразование
+    if (strcmp(argv[2], "none") == 0) {
+        transformNone(bmp);
+    } else if (strcmp(argv[2], "cw90") == 0) {
+        transformRotateCW90(bmp);
+    } else if (strcmp(argv[2], "ccw90") == 0) {
+        transformRotateCCW90(bmp);
+    } else if (strcmp(argv[2], "fliph") == 0) {
+        transformFlipHorizontal(bmp);
+    } else if (strcmp(argv[2], "flipv") == 0) {
+        transformFlipVertical(bmp);
+    } else {
+        printf("Ошибка: неизвестный тип преобразования.\n");
+        freeBMPfile(bmp);
+        return 1;
+    }
+
+    // Сохраняем результат
+    saveBMPfile(bmp, argv[3]);
+    freeBMPfile(bmp);
+
+    printf("Файл успешно сохранён.\n");
 
     return 0;
 }
